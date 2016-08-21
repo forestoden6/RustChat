@@ -1,0 +1,11 @@
+[package]
+name = "chat"
+version = "0.1.0"
+authors = ["Forest Oden <forestoden6@gmail.com>"]
+
+[dependencies]
+mio = "0.5.0"
+mioco = "*"
+http-muncher = "0.2.0"
+rustc-serialize = "0.3.15"
+sha1 = "0.1.1"
