@@ -1,6 +1,6 @@
 [package]
 name = "chat"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Forest Oden <forestoden6@gmail.com>"]
 
 [dependencies]
@@ -9,3 +9,4 @@ mioco = "*"
 http-muncher = "0.2.0"
 rustc-serialize = "0.3.15"
 sha1 = "0.1.1"
+byteorder = "0.3.*"

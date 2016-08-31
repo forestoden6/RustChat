@@ -3,6 +3,7 @@ extern crate mioco;
 extern crate http_muncher;
 extern crate rustc_serialize;
 extern crate sha1;
+extern crate byteorder;
 
 use mio::*;
 //use mioco::*;
@@ -16,9 +17,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::fmt;
 
+mod frame;
+
+use frame::*;
+
 #[derive(PartialEq)]
 enum ClientState {
-    AwaitingHandshake,
+    AwaitingHandshake(RefCell<Parser<HttpParser>>),
     HandshakeResponse,
     Connected
 }
@@ -76,6 +81,21 @@ impl ParserHandler for HttpParser {
 
 impl WebSocketClient {
     fn read(&mut self) {
+        match self.state {
+            ClientState::AwaitingHandshake(_) => {
+                self.read_handshake();
+            },
+            ClientState::Connected => {
+                let frame = WebSocketFrame::read(&mut self.socket);
+                match frame {
+                    Ok(frame) => println!("{:?}", frame),
+                    Err(e) => println!("error while reading frame: {}", e)
+                }
+            }
+            _ => {}
+        }
+    }
+    fn read_handshake(&mut self) {
         loop {
             let mut buf = [0; 2048];
             match self.socket.try_read(&mut buf) {
@@ -86,8 +106,13 @@ impl WebSocketClient {
                 Ok(None) =>
                     break,
                 Ok(Some(len)) => {
-                    self.http_parser.parse(&buf[0..len]);
-                    if self.http_parser.is_upgrade() {
+                    let is_upgrade = if let ClientState::AwaitingHandshake(ref parser_state) = self.state {
+                        let mut parser = parser_state.borrow_mut();
+                        parser.parse(&buf);
+                        parser.is_upgrade()
+                    } else { false };
+
+                    if is_upgrade {
                         self.state = ClientState::HandshakeResponse;
                         
                         self.interest.remove(EventSet::readable());
@@ -126,7 +151,10 @@ impl WebSocketClient {
                 headers: headers.clone()
             }),
             interest: EventSet::readable(),
-            state: ClientState::AwaitingHandshake
+            state: ClientState::AwaitingHandshake(RefCell::new(Parser::request(HttpParser {
+                current_key: None,
+                headers: headers.clone()
+            })))
         }
     }
 }   
